@@ -6,7 +6,7 @@ class Port:
     def __init__(self, name, type, size):
         self._name = name
         if type != "input" and type != "output" and type != "inout":
-            raise ValueError("Port type should: `input`, `output` or `inout`")
+            raise ValueError("Port type should be: `input`, `output` or `inout`")
         self._type = type
         self._size = size
 
