@@ -27,7 +27,7 @@ class Module:
             self.ports = []
             self.name = ""
             self.clk = clk_name
-            self.period = clk_period
+            self.period = str(int(int(clk_period)/2))
             self.sim_time = sim_time
             self.timescale = timescale
             self.inputs = files
@@ -174,6 +174,10 @@ def main():
     parser = argparse.ArgumentParser(description="Verilog testbench template generator")
     parser.add_argument("input", nargs="+", help="Input verilog sources")
     parser.add_argument("name", help="Name of the module under testing")
+    parser.add_argument("-c", help="Clock signal name, default: clk")
+    parser.add_argument("-p", help="Clock period, default: 10")
+    parser.add_argument("-t", help="Timescale, default: 1ns")
+    parser.add_argument("-s", help="Simulation time, default: 1000")
     parser.add_argument("-v", action="store_true", help="Verbosity")
     args = parser.parse_args()
 
@@ -184,15 +188,19 @@ def main():
 
     inputs = args.input
     name = args.name
+    clk = args.c if args.c else "clk"
+    clk_period = args.p if args.p else "10"
+    timescale = args.t if args.t else "1ns"
+    sim_time = args.s if args.s else "1000"
 
     try:
         module = Module(
             files=inputs,
-            name="register_map",
-            clk_name="clk",
-            clk_period="25",
-            sim_time="100",
-            timescale="1ns",
+            name=name,
+            clk_name=clk,
+            clk_period=clk_period,
+            sim_time=sim_time,
+            timescale=timescale,
         )
         tb_text = module.generate_tb()
         tb_do = module.generate_do()
