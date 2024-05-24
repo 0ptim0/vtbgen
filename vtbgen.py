@@ -55,14 +55,14 @@ class Module:
 
     def parse_ports(self) -> list[Port]:
         ports = []
-        match = re.search(r"\s*module.*\(([a-zA-Z0-9 \[\]:\n\r_, \/]*)\);", self._text)
+        match = re.search(r"\s*module[\S\s]*\(([\S\s]*)\);", self._text)
         if match:
             self._text = match.group(1)
         else:
             raise ValueError("Ports have not been found")
 
         io_matches = re.findall(
-            r"(input|inout|output)\s+(wire|reg)?\s*(\[\s*\d*\s*:\s*\d*\s*\])?\s*(\w+)?",
+            r"(input|inout|output)\s+(wire|reg)?\s*(\[.*\])?\s*(\w+)?",
             self._text,
         )
         if io_matches:
