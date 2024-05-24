@@ -13,6 +13,13 @@ class Port:
         self.size = size
 
 
+class Parameter:
+    def __init__(self, name, size, default_value):
+        self.name = name
+        self.size = size
+        self.default_value = default_value
+
+
 class Module:
     def __init__(
         self,
@@ -27,7 +34,7 @@ class Module:
             self.ports = []
             self.name = ""
             self.clk = clk_name
-            self.period = str(int(int(clk_period)/2))
+            self.period = str(int(int(clk_period) / 2))
             self.sim_time = sim_time
             self.timescale = timescale
             self.inputs = files
@@ -39,6 +46,7 @@ class Module:
                         logging.debug(f"Module {name} has been found in {file}")
                         self.name = _name
                         self.ports = self.parse_ports()
+                        self.params = self.parse_params()
                         break
             if not self.name:
                 raise ValueError(f"Module {name} has not been found")
@@ -53,17 +61,48 @@ class Module:
         else:
             raise ValueError("Module name has not been found")
 
+    def parse_params(self) -> list[Parameter]:
+        params = []
+        match = re.search(r"\s*module.*#\(([\S\s]*)\)\s+\(([\S\s]*)\);", self._text)
+        if match:
+            text = match.group(1)
+        else:
+            logging.debug(f"Parameters have not been found")
+            return []
+
+        param_matches = re.findall(
+            r"\s*parameter\s+(\[.*\])?\s*(\w+)\s*=\s*(\d+)",
+            text,
+        )
+        if param_matches:
+            for match in param_matches:
+                size = match[0] if match[0] else ""
+                if match[1]:
+                    name = match[1]
+                else:
+                    raise ValueError("Parameter name has not been found")
+                if match[2]:
+                    default_value = match[2]
+                else:
+                    raise ValueError("Parameter default value has not been found")
+
+                logging.debug(f"parameter {size} {name} = {default_value}")
+                params.append(
+                    Parameter(name=name, size=size, default_value=default_value)
+                )
+        return params
+
     def parse_ports(self) -> list[Port]:
         ports = []
-        match = re.search(r"\s*module[\S\s]*\(([\S\s]*)\);", self._text)
+        match = re.search(r"\s*module.*#\(([\S\s]*)\)\s+\(([\S\s]*)\);", self._text)
         if match:
-            self._text = match.group(1)
+            text = match.group(2)
         else:
             raise ValueError("Ports have not been found")
 
         io_matches = re.findall(
             r"(input|inout|output)\s+(wire|reg)?\s*(\[.*\])?\s*(\w+)?",
-            self._text,
+            text,
         )
         if io_matches:
             for match in io_matches:
@@ -95,13 +134,21 @@ class Module:
             self.name = self.parse_name()
         if not self.ports:
             self.ports = self.parse_ports()
+        if not self.params:
+            self.params = self.parse_params()
 
         name = self.name
         ports = self.ports
+        params = self.params
 
         text = ""
         text += f"`timescale {self.timescale} / {self.timescale}\n\n"
         text += f"module {name}_tb;\n"
+        for param in params:
+            text += "  parameter "
+            text += "" if len(param.size) == 0 else param.size + " "
+            text += f"{param.name} = {param.default_value};\n"
+        text += "\n"
         for port in ports:
             if port.name == self.clk:
                 port.type = "reg"
@@ -125,7 +172,8 @@ class Module:
         text += "  initial begin\n"
         text += f"    {self.clk} = 0;\n"
         text += "    forever begin\n"
-        text += f"      #{self.period} {self.clk} = ~{self.clk};\n"
+        text += f"      #{self.period};\n"
+        text += f"      {self.clk} = ~{self.clk};\n"
         text += "    end\n"
         text += "  end\n\n"
 
@@ -140,8 +188,6 @@ class Module:
     def generate_do(self):
         if not self.name:
             self.name = self.parse_name()
-        if not self.ports:
-            self.ports = self.parse_ports()
 
         text = ""
         text += "onerror {resume}\n"
@@ -154,8 +200,6 @@ class Module:
     def generate_make(self):
         if not self.name:
             self.name = self.parse_name()
-        if not self.ports:
-            self.ports = self.parse_ports()
 
         text = ""
         text += f".PHONY: all clean compile run\n\n"
@@ -163,7 +207,7 @@ class Module:
             text += f'SRC+="{src}"\n'
         text += f'SRC+="{self.name + "_tb.sv"}"\n'
         text += "\n"
-        text += "all: clean compile run\n\n"
+        text += "all: compile run\n\n"
         text += "clean:\n\tvdel -all\n\n"
         text += "compile:\n\tvlib work\n\tvlog -sv $(SRC)\n\n"
         text += f"run:\n\tvsim -gui -suppress 10000 -quiet work.{self.name + '_tb'} -do \"{self.name + '_tb.do'}\" -do \"run -all\"\\\n"
