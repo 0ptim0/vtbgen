@@ -63,15 +63,17 @@ class Module:
 
     def parse_params(self) -> list[Parameter]:
         params = []
-        match = re.search(r"\s*module.*#\(([\S\s]*)\)\s+\(([\S\s]*)\);", self._text)
+        match = re.search(r"\s*module.*(\([\S\s]*\))*\s+\(([\S\s]*)\);", self._text)
+        text = []
         if match:
             text = match.group(1)
-        else:
+
+        if not text:
             logging.debug(f"Parameters have not been found")
             return []
 
         param_matches = re.findall(
-            r"\s*parameter\s+(\[.*\])?\s*(\w+)\s*=\s*(\d+)",
+            r"\s*parameter\s+(\[.*\])?\s*(\w+)\s*=\s*([\S]+)",
             text,
         )
         if param_matches:
@@ -94,7 +96,7 @@ class Module:
 
     def parse_ports(self) -> list[Port]:
         ports = []
-        match = re.search(r"\s*module.*#\(([\S\s]*)\)\s+\(([\S\s]*)\);", self._text)
+        match = re.search(r"\s*module.*(\([\S\s]*\))*\s+\(([\S\s]*)\);", self._text)
         if match:
             text = match.group(2)
         else:
@@ -158,7 +160,20 @@ class Module:
             text += port.name
             text += ";\n"
         text += "\n"
-        text += f"  {name} DUT (\n"
+
+        param_num = 1
+        if params:
+            text += f"  {name} #(\n"
+            for param in params:
+                text += f"    .{param.name}({param.name})"
+                if param_num != len(params):
+                    text += ","
+                text += "\n"
+
+            text += f"  ) DUT (\n"
+        else:
+            text += f"  {name} DUT (\n"
+
         port_num = 1
         for port in ports:
             text += "    "
