@@ -69,7 +69,7 @@ endmodule
 
 ### Command
 ```bash
-python vtestgen.py test/clock_divider.sv clock_divider -v -c in
+python vtestgen.py test/clock_divider.sv clock_divider -v -c in -p 10 -t 1ns
 ```
 
 ### Generated files
