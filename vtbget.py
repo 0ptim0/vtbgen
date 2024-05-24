@@ -12,8 +12,17 @@ class Port:
         self.type = type
         self.size = size
 
+
 class Module:
-    def __init__(self, file, name, clk_name, clk_period, sim_time, timescale="1ns"):
+    def __init__(
+        self,
+        file,
+        name,
+        clk_name="clk",
+        clk_period="10",
+        sim_time="1000",
+        timescale="1ns",
+    ):
         try:
             with open(file, "r") as f:
                 self._text = f.read()
@@ -135,7 +144,14 @@ def main():
     name = args.name
 
     try:
-        module = Module(inputs[0], "register_map", "clk", "10", "1000")
+        module = Module(
+            file=inputs[0],
+            name="register_map",
+            clk_name="clk",
+            clk_period="25",
+            sim_time="100",
+            timescale="1ns",
+        )
         module.name()
         module.ports()
         tb_text = module.generate_tb()
