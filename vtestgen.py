@@ -117,9 +117,7 @@ class Module:
                 dir = match[0]
                 name = match[3]
                 if not name:
-                    raise ValueError(
-                        "Port name has not been found"
-                    )
+                    raise ValueError("Port name has not been found")
                 logging.debug(f"Port name: {name}")
                 if not dir:
                     logging.debug("Direction not found, parse the entire file")
@@ -162,6 +160,7 @@ class Module:
         name = self.name
         ports = self.ports
         params = self.params
+        clk_found = False
 
         text = ""
         text += f"`timescale {self.timescale} / {self.timescale}\n\n"
@@ -173,7 +172,12 @@ class Module:
         text += "\n"
         for port in ports:
             if port.name == self.clk:
+                clk_found = True
                 port.type = "reg"
+            elif port.dir == "input":
+                port.type = "reg"
+            elif port.dir == "output":
+                port.type = "wire"
             text += "  "
             text += port.type + " "
             text += "" if len(port.size) == 0 else port.size + " "
@@ -204,13 +208,14 @@ class Module:
             port_num += 1
         text += f"  );\n\n"
 
-        text += "  initial begin\n"
-        text += f"    {self.clk} = 0;\n"
-        text += "    forever begin\n"
-        text += f"      #{self.period};\n"
-        text += f"      {self.clk} = ~{self.clk};\n"
-        text += "    end\n"
-        text += "  end\n\n"
+        if clk_found:
+            text += "  initial begin\n"
+            text += f"    {self.clk} = 0;\n"
+            text += "    forever begin\n"
+            text += f"      #{self.period};\n"
+            text += f"      {self.clk} = ~{self.clk};\n"
+            text += "    end\n"
+            text += "  end\n\n"
 
         text += "  initial begin\n"
         text += f"    #{self.sim_time};\n"
@@ -227,6 +232,7 @@ class Module:
         text = ""
         text += "onerror {resume}\n"
         text += "quietly WaveActivateNextPane {} 0\n\n"
+        text += "radix -hexadecimal\n\n"
         text += f"add wave /{self.name + '_tb'}/*\n"
         text += f"add wave /{self.name + '_tb'}/DUT/*\n\n"
         text += f"update\n"
