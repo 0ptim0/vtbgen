@@ -96,33 +96,53 @@ class Module:
 
     def parse_ports(self) -> list[Port]:
         ports = []
-        match = re.search(r"\s*module.*(\([\S\s]*\))*\s+\(([\S\s]*)\);", self._text)
+        match = re.search(
+            r"\s*module\s+\w*\s*#?\s*(\([\S\s]*\))?\s*\(([\S\s]*?)\);", self._text
+        )
         if match:
             text = match.group(2)
+            logging.debug(text)
         else:
             raise ValueError("Ports have not been found")
 
         io_matches = re.findall(
-            r"(input|inout|output)\s+(wire|reg)?\s*(\[.*\])?\s*(\w+)?",
+            r"(input|inout|output)?\s+(wire|reg)?\s*(\[.*\])?\s*(\w+)\s*[,;\n\r)]",
             text,
         )
+        logging.debug(io_matches)
+
         if io_matches:
             for match in io_matches:
-                if match[0]:
-                    dir = match[0]
-                else:
+                logging.debug(match)
+                dir = match[0]
+                name = match[3]
+                if not name:
                     raise ValueError(
-                        "Port direction (input/output/inout) has not been found"
+                        "Port name has not been found"
                     )
+                logging.debug(f"Port name: {name}")
+                if not dir:
+                    logging.debug("Direction not found, parse the entire file")
+                    pattern = (
+                        r"(input|inout|output)\s+(wire|reg)?\s*(\[.*\])?\s*"
+                        + match[3]
+                        + "\s*;"
+                    )
+                    match = re.findall(
+                        pattern,
+                        self._text,
+                    )
+                    match = match[0]
+                    logging.debug(match)
+                    dir = match[0]
+                    if not dir:
+                        raise ValueError(
+                            "Port direction (input/output/inout) has not been found"
+                        )
+
                 type = match[1] if match[1] else "wire"
                 size = str(match[2]).replace(" ", "") if match[2] else ""
-                if match[3]:
-                    name = match[3]
-                else:
-                    raise ValueError("Port name has not been found")
-
                 logging.debug(f"{dir} {type} {size} {name}")
-
                 try:
                     ports.append(Port(name=name, dir=dir, type=type, size=size))
                 except:
